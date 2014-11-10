@@ -24,7 +24,6 @@ import argparse
 import gzip
 import os
 import sys
-import Image
 import glob
 import subprocess
 import tempfile
@@ -356,7 +355,11 @@ def extract_focal_length(images=[], scale=1.0, verbose=False):
         with open(image, 'rb') as fp:
             img = Image.open(fp)
             if hasattr(img, '_getexif'):
-                exifinfo = img._getexif()
+                exifinfo = None
+                try:
+			  	    exifinfo = img._getexif()
+                except:
+                    pass
                 if exifinfo is not None:
                     for tag, value in exifinfo.items():
                         tags[ExifTags.TAGS.get(tag, tag)] = value
@@ -468,7 +471,7 @@ def sift_images(images, verbose=False, parallel=True):
             BIN_SIFT = os.path.join(BIN_PATH, "sift")
         
     if parallel:
-        pool = Pool()
+        pool = Pool(6)
         key_filenames = pool.map(sift_image, images)
     else:
         for image in images:
