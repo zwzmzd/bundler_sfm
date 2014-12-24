@@ -20,8 +20,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
+#include <assert.h>
+#include <pthread.h>
 
+#include "threadpool.h"
 #include "keys2a.h"
+
+struct KeyMatchWorkerParams {
+	int i;
+	int window_radius;
+	double ratio;
+	FILE *output;
+	pthread_mutex_t *p_write_lock;
+};
+
+std::vector<unsigned char*> keys;
+std::vector<int> num_keys;
+int num_images;
 
 int ReadFileList(char* list_in, std::vector<std::string>& key_files) {
     FILE* fp;
@@ -56,6 +72,68 @@ int ReadFileList(char* list_in, std::vector<std::string>& key_files) {
     return 0;
 }
 
+void match_worker_fn(void *p) {
+	struct KeyMatchWorkerParams *args = (struct KeyMatchWorkerParams *)p;
+	int i = args->i;
+	int window_radius = args->window_radius;
+	FILE *f = args->output;
+	pthread_mutex_t *p_write_lock = args->p_write_lock;
+	double ratio = args->ratio;
+
+	if (num_keys[i] == 0)
+		return;
+
+	printf("[KeyMatchFull] Matching to image %d\n", i);
+
+	clock_t start = clock();
+
+	/* Create a tree from the keys */
+	ANNkd_tree *tree = CreateSearchTree(num_keys[i], keys[i]);
+
+	/* Compute the start index */
+	int start_idx = 0;
+	if (window_radius > 0) 
+		start_idx = std::max(i - window_radius, 0);
+
+	for (int j = start_idx; j < i; j++) {
+		if (num_keys[j] == 0)
+			continue;
+
+		/* Compute likely matches between two sets of keypoints */
+		std::vector<KeypointMatch> matches = 
+			MatchKeys(num_keys[j], keys[j], tree, ratio);
+
+		int num_matches = (int) matches.size();
+
+		if (num_matches >= 16) {
+			/* write block atomically */
+			pthread_mutex_lock(p_write_lock);
+
+			/* Write the pair */
+			fprintf(f, "%d %d\n", j, i);
+
+			/* Write the number of matches */
+			fprintf(f, "%d\n", (int) matches.size());
+
+			for (int i = 0; i < num_matches; i++) {
+				fprintf(f, "%d %d\n", 
+						matches[i].m_idx1, matches[i].m_idx2);
+			}
+			fflush(f);
+
+			/* block output finish */
+			pthread_mutex_unlock(p_write_lock);
+		}
+	}
+
+	clock_t end = clock();
+	printf("[KeyMatchFull] %d Matching took %0.3fs\n",
+		   i, (end - start) / ((double) CLOCKS_PER_SEC));
+	fflush(stdout);
+
+	delete tree;
+}
+
 int main(int argc, char **argv) {
     char *list_in;
     char *file_out;
@@ -65,6 +143,7 @@ int main(int argc, char **argv) {
         printf("Usage: %s <list.txt> <outfile> [window_radius]\n", argv[0]);
         return EXIT_FAILURE;
     }
+
 
     list_in = argv[1];
     ratio = 0.6;
@@ -87,10 +166,11 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    int num_images = (int) key_files.size();
-
-    std::vector<unsigned char*> keys(num_images);
-    std::vector<int> num_keys(num_images);
+    num_images = (int) key_files.size();
+	keys.clear();
+	num_keys.clear();
+    keys.resize(num_images);
+    num_keys.resize(num_images);
 
     /* Read all keys */
     for (int i = 0; i < num_images; i++) {
@@ -102,53 +182,29 @@ int main(int argc, char **argv) {
     printf("[KeyMatchFull] Reading keys took %0.3fs\n", 
            (end - start) / ((double) CLOCKS_PER_SEC));
 
+	/* initialize write_lock */
+	pthread_mutex_t write_lock;
+	int ret = pthread_mutex_init(&write_lock, NULL);
+	if (ret != 0) {
+		perror("Mutex Initialization Failed");
+		return EXIT_FAILURE;
+	}
+
+	/* create thread pool */
+	threadpool_t *pool = threadpool_create(3, num_images + 10, 0);
     for (int i = 0; i < num_images; i++) {
-        if (num_keys[i] == 0)
-            continue;
+		struct KeyMatchWorkerParams *args = (struct KeyMatchWorkerParams *)malloc(sizeof(*args));
+		args->i = i;
+		args->output = f;
+		args->p_write_lock = &write_lock;
+		args->window_radius = window_radius;
+		args->ratio = ratio;
 
-        printf("[KeyMatchFull] Matching to image %d\n", i);
-
-        start = clock();
-
-        /* Create a tree from the keys */
-        ANNkd_tree *tree = CreateSearchTree(num_keys[i], keys[i]);
-
-        /* Compute the start index */
-        int start_idx = 0;
-        if (window_radius > 0) 
-            start_idx = std::max(i - window_radius, 0);
-
-        for (int j = start_idx; j < i; j++) {
-            if (num_keys[j] == 0)
-                continue;
-
-            /* Compute likely matches between two sets of keypoints */
-            std::vector<KeypointMatch> matches = 
-                MatchKeys(num_keys[j], keys[j], tree, ratio);
-
-            int num_matches = (int) matches.size();
-
-            if (num_matches >= 16) {
-                /* Write the pair */
-                fprintf(f, "%d %d\n", j, i);
-
-                /* Write the number of matches */
-                fprintf(f, "%d\n", (int) matches.size());
-
-                for (int i = 0; i < num_matches; i++) {
-                    fprintf(f, "%d %d\n", 
-                            matches[i].m_idx1, matches[i].m_idx2);
-                }
-            }
-        }
-
-        end = clock();
-        printf("[KeyMatchFull] Matching took %0.3fs\n", 
-               (end - start) / ((double) CLOCKS_PER_SEC));
-        fflush(stdout);
-
-        delete tree;
+		assert(threadpool_add(pool, &match_worker_fn, args, 0) == 0);
     }
+	threadpool_destroy(pool, threadpool_graceful);
+	printf("[ff %d]\n", num_images);
+
 
     /* Free keypoints */
     for (int i = 0; i < num_images; i++) {
@@ -159,4 +215,3 @@ int main(int argc, char **argv) {
     fclose(f);
     return EXIT_SUCCESS;
 }
-

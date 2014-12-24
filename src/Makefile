@@ -72,9 +72,9 @@ $(BUNDLER): $(BUNDLER_OBJS)
 		$(BUNDLER_DEFINES) $(BUNDLER_OBJS) $(BUNDLER_LIBS)
 	cp $@ ../bin
 
-$(KEYMATCHFULL): KeyMatchFull.o keys2a.o
-	$(CXX) -o $@ $(CPPFLAGS) $(LIB_PATH) KeyMatchFull.o keys2a.o \
-		-lANN_char -lz
+$(KEYMATCHFULL): KeyMatchFull.o keys2a.o threadpool.o
+	$(CXX) -o $@ $(CPPFLAGS) $(LIB_PATH) KeyMatchFull.o keys2a.o threadpool.o\
+		-lANN_char -lz -lpthread
 	cp $@ ../bin
 
 $(BUNDLE2PLY): Bundle2Ply.o
