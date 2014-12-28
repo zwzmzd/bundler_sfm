@@ -28,6 +28,7 @@ import glob
 import subprocess
 import tempfile
 from multiprocessing import Pool
+import imghdr
 from PIL import Image, ExifTags
 
 VERSION = "Bundler 0.4"
@@ -332,6 +333,14 @@ CCD_WIDTHS = {
 def get_images():
     """Searches the present directory for JPEG images."""
     images = glob.glob("./*.[jJ][pP][gG]")
+    def is_jpeg(image):
+        image_type = imghdr.what(image)
+        if not image_type or image_type != 'jpeg':
+            return False
+        else:
+            return True
+    filter(is_jpeg, images)
+        
     if len(images) == 0:
         error_str = ("Error: No images supplied!  "
                      "No JPEG files found in directory!")
@@ -351,18 +360,25 @@ def extract_focal_length(images=[], scale=1.0, verbose=False):
     for image in images:
         if verbose: print "[Extracting EXIF tags from image {0}]".format(image)
 
+        image_error = False
         tags = {}
         with open(image, 'rb') as fp:
-            img = Image.open(fp)
-            if hasattr(img, '_getexif'):
-                exifinfo = None
-                try:
-			  	    exifinfo = img._getexif()
-                except:
-                    pass
-                if exifinfo is not None:
-                    for tag, value in exifinfo.items():
-                        tags[ExifTags.TAGS.get(tag, tag)] = value
+            try:
+                img = Image.open(fp)
+                if hasattr(img, '_getexif'):
+                    exifinfo = None
+                    try:
+                        exifinfo = img._getexif()
+                    except:
+                        pass
+                    if exifinfo is not None:
+                        for tag, value in exifinfo.items():
+                            tags[ExifTags.TAGS.get(tag, tag)] = value
+            except:
+                image_error = True
+        if image_error:
+            # This is not a valid image
+            continue
 
         ret[image] = None
 
