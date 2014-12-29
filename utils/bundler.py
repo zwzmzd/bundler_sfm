@@ -339,7 +339,9 @@ def get_images():
             return False
         else:
             return True
-    filter(is_jpeg, images)
+    # a file with 'jpg' extension may not be a jpeg file, 
+    # especially for files grabbed from the search engine
+    images = filter(is_jpeg, images)
         
     if len(images) == 0:
         error_str = ("Error: No images supplied!  "
