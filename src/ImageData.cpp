@@ -280,6 +280,19 @@ void ImageData::InitFromString(char *buf, const char *path,
     m_key_name = strdup(key_buf);
 }
 
+static bool check_isJPEG(const char *m_name) {
+	/* check whether m_name is ending with '.jpeg'(case insensitive) */
+	bool isJPEG = 0;
+	if (strlen(m_name) > 4) {
+		char name_last[5];
+		for (int i = 0; i < 5; i++) {
+			name_last[4 - i] = tolower(m_name[strlen(m_name) - i]);
+		}
+		isJPEG = (strcmp(name_last, ".jpg") == 0);
+	}
+	return isJPEG;
+}
+
 void ImageData::LoadImage() {
     /* Check if there is a jpg file with the same basename */
     char jpeg_buf[256];
@@ -297,7 +310,9 @@ void ImageData::LoadImage() {
 
     img_t *img;
 
-    if (FileExists(jpeg_buf)) {
+	if (check_isJPEG(m_name)) {
+        img = LoadJPEG(m_name);
+	} else if (FileExists(jpeg_buf)) {
         // printf("[ImageData::LoadImage] Reading JPEG...\n");
         img = LoadJPEG(jpeg_buf);
 
