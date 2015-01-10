@@ -338,6 +338,13 @@ def get_images():
         if not image_type or image_type != 'jpeg':
             return False
         else:
+            try:
+                fp_img = open(image, 'rb')
+                image = Image.open(fp_img)
+                image.convert('L')
+                fp_img.close()
+            except:
+                return False
             return True
     # a file with 'jpg' extension may not be a jpeg file, 
     # especially for files grabbed from the search engine
@@ -441,6 +448,7 @@ def sift_image(image, verbose=False):
     pgm_filename = image.rsplit('.', 1)[0] + ".pgm"
     key_filename = image.rsplit('.', 1)[0] + ".key"
 
+    print image
     # Convert image to PGM format (grayscale)
     with open(image, 'rb') as fp_img:
         image = Image.open(fp_img)
@@ -489,7 +497,7 @@ def sift_images(images, verbose=False, parallel=True):
             BIN_SIFT = os.path.join(BIN_PATH, "sift")
         
     if parallel:
-        pool = Pool(6)
+        pool = Pool(4)
         key_filenames = pool.map(sift_image, images)
     else:
         for image in images:
@@ -598,9 +606,12 @@ def bundler(image_list=None, options_file=None, shell=False, *args, **kwargs):
 
     with open(os.path.join("bundle", "out"), 'wb') as fp_out:
         if options_file is not None:
+            print ' '.join([BIN_BUNDLER, image_list_file, "--options_file",
+                options_file])
             subprocess.call([BIN_BUNDLER, image_list_file, "--options_file",
                 options_file], shell=shell, env=env, stdout=fp_out)
         else:
+            print  ' '.join([BIN_BUNDLER, image_list_file] + str_args)
             subprocess.call([BIN_BUNDLER, image_list_file] + str_args,
                 shell=shell, env=env, stdout=fp_out)
 
@@ -655,6 +666,8 @@ if __name__ == '__main__':
         help="disable parallelisation", default=False)
     parser.add_argument('--extract-focal', action='store_true',
         help="only create list of images to be reconstructed", default=False)
+    parser.add_argument('--init', action='store_true',
+        help="rename all your case to expI.jpg", default=False)
     args = parser.parse_args()
 
     if args.extract_focal:
@@ -663,6 +676,21 @@ if __name__ == '__main__':
             for image,value in images.items():
                 if value == None: fp.write(image + '\n')
                 else: fp.write(' '.join([image, '0', str(value), '\n']))
+    elif args.init:
+        images = extract_focal_length(verbose=args.verbose)
+        i = 0
+        for image,value in images.items():
+            dirname = os.path.dirname(image)
+            basename = os.path.basename(image)
+            fname, fext = os.path.splitext(basename)
+
+            img_file = os.path.join(dirname, '%s%s' % (fname, fext))
+            new_img_file = os.path.join(dirname, 'img%04d%s' % (i, fext.lower()))
+
+            if os.path.exists(img_file):
+                print '%s --> \n\t%s' % (img_file, new_img_file)
+                os.rename(img_file, new_img_file)
+            i += 1
     else:
         run_bundler(verbose=args.verbose, parallel=not args.no_parallel)
 
