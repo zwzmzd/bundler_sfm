@@ -27,6 +27,8 @@ import sys
 import glob
 import subprocess
 import tempfile
+import hashlib
+import random
 from multiprocessing import Pool
 import imghdr
 from PIL import Image, ExifTags
@@ -330,6 +332,27 @@ CCD_WIDTHS = {
      "SONY DSC-W80"                              : 5.75,   # 1/2.5"
 }
 
+def batch_rename(d):
+    """batch rename files"""
+    # source files --> temporary files --> destination files
+
+    temp_d = {}
+    for srcpath in d: 
+        dirname = os.path.dirname(srcpath)
+        tempfilename = hashlib.sha224(str(random.getrandbits(256))).hexdigest()
+        temppath = os.path.join(dirname, tempfilename)
+        temp_d[srcpath] = temppath
+
+        if os.path.exists(srcpath):
+            os.rename(srcpath, temppath)
+
+    for srcpath in d:
+        temppath = temp_d[srcpath]
+        dstpath = d[srcpath]
+        if os.path.exists(temppath):
+            os.rename(temppath, dstpath)
+
+
 def get_images():
     """Searches the present directory for JPEG images."""
     images = glob.glob("./*.[jJ][pP][gG]")
@@ -529,9 +552,11 @@ def match_images(key_files, matches_file, verbose=False):
         env['LD_LIBRARY_PATH'] = LIB_PATH
 
     if verbose:
+        ' '.join([BIN_MATCHKEYS, keys_file, matches_file])
         subprocess.call([BIN_MATCHKEYS, keys_file, matches_file], env=env)
     else:
         with open(os.devnull, 'w') as fp_out:
+            ' '.join([BIN_MATCHKEYS, keys_file, matches_file])
             subprocess.call([BIN_MATCHKEYS, keys_file, matches_file],
                             stdout=fp_out, env=env)
             
@@ -678,6 +703,7 @@ if __name__ == '__main__':
                 else: fp.write(' '.join([image, '0', str(value), '\n']))
     elif args.init:
         images = extract_focal_length(verbose=args.verbose)
+        d = {}
         i = 0
         for image,value in images.items():
             dirname = os.path.dirname(image)
@@ -686,11 +712,10 @@ if __name__ == '__main__':
 
             img_file = os.path.join(dirname, '%s%s' % (fname, fext))
             new_img_file = os.path.join(dirname, 'img%04d%s' % (i, fext.lower()))
-
-            if os.path.exists(img_file):
-                print '%s --> \n\t%s' % (img_file, new_img_file)
-                os.rename(img_file, new_img_file)
+            print '%s --> \n\t%s' % (img_file, new_img_file)
+            d[img_file] = new_img_file
             i += 1
+        batch_rename(d)
     else:
         run_bundler(verbose=args.verbose, parallel=not args.no_parallel)
 
