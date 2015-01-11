@@ -471,22 +471,22 @@ def sift_image(image, verbose=False):
     pgm_filename = image.rsplit('.', 1)[0] + ".pgm"
     key_filename = image.rsplit('.', 1)[0] + ".key"
 
-    print image
     # Convert image to PGM format (grayscale)
     with open(image, 'rb') as fp_img:
-        image = Image.open(fp_img)
-        image.convert('L').save(pgm_filename)
+        img = Image.open(fp_img)
+        img.convert('L').save(pgm_filename)
 
+    ret = 0
     # Extract SIFT data
     if verbose:
         with open(pgm_filename, 'rb') as fp_in:
             with open(key_filename, 'wb') as fp_out:
-                subprocess.call(BIN_SIFT, stdin=fp_in, stdout=fp_out)
+                ret = subprocess.call(BIN_SIFT, stdin=fp_in, stdout=fp_out)
     else:
         with open(pgm_filename, 'rb') as fp_in:
             with open(key_filename, 'wb') as fp_out:
                 with open(os.devnull, 'w') as fp_err:
-                    subprocess.call(BIN_SIFT, stdin=fp_in, stdout=fp_out,
+                    ret = subprocess.call(BIN_SIFT, stdin=fp_in, stdout=fp_out,
                                     stderr=fp_err)
 
     # Remove pgm file
@@ -498,7 +498,10 @@ def sift_image(image, verbose=False):
             fp_out.writelines(fp_in)
     os.remove(key_filename)
 
-    return key_filename
+    if ret == 0:
+        return (image, key_filename)
+    else:
+        return (image, None)
 
 def sift_images(images, verbose=False, parallel=True):
     """Extracts SIFT features from images in 'images'.
@@ -526,7 +529,17 @@ def sift_images(images, verbose=False, parallel=True):
         for image in images:
             key_filenames.append(sift_image(image, verbose=verbose))
 
-    return key_filenames
+    
+    files_not_supported = []
+    for item in key_filenames:
+        if item[1] is None:
+            files_not_supported.append(item[0])
+    if len(files_not_supported) > 0:
+        sys.stderr.write("The following image(s) are too large for SIFT, please delete them and run again\n%s\n\n" %
+                ' '.join(files_not_supported))
+
+    assert len(files_not_supported) == 0
+    return map(lambda x: x[1], key_filenames)
 
 def match_images(key_files, matches_file, verbose=False):
     "Executes KeyMatchFull to match key points in images."""
@@ -552,15 +565,14 @@ def match_images(key_files, matches_file, verbose=False):
         env['LD_LIBRARY_PATH'] = LIB_PATH
 
     if verbose:
-        ' '.join([BIN_MATCHKEYS, keys_file, matches_file])
+        print ' '.join([BIN_MATCHKEYS, keys_file, matches_file])
         subprocess.call([BIN_MATCHKEYS, keys_file, matches_file], env=env)
     else:
         with open(os.devnull, 'w') as fp_out:
-            ' '.join([BIN_MATCHKEYS, keys_file, matches_file])
+            print ' '.join([BIN_MATCHKEYS, keys_file, matches_file])
             subprocess.call([BIN_MATCHKEYS, keys_file, matches_file],
                             stdout=fp_out, env=env)
-            
-    os.remove(keys_file)
+
 
 def bundler(image_list=None, options_file=None, shell=False, *args, **kwargs):
     """Run bundler, parsing arguments from args and kwargs through.
