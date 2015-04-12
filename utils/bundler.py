@@ -416,7 +416,12 @@ def extract_focal_length(images=[], scale=1.0, verbose=False):
 
         # Extract Focal Length
         focalN, focalD = tags.get('FocalLength', (0, 1))
-        focal_length = float(focalN)/float(focalD)
+        # Sometimes focalD is 0
+        if float(focalD) > 1e-10:
+            focal_length = float(focalN)/float(focalD)
+        else:
+            focal_length = 0.0
+
 
         # Extract Resolution
         img_width = tags.get('ExifImageWidth', 0)
@@ -714,6 +719,7 @@ if __name__ == '__main__':
                 if value == None: fp.write(image + '\n')
                 else: fp.write(' '.join([image, '0', str(value), '\n']))
     elif args.init:
+        print 'init'
         images = extract_focal_length(verbose=args.verbose)
         d = {}
         i = 0
