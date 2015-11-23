@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 
 #include "keys2a.h"
 
@@ -61,19 +62,14 @@ int main(int argc, char **argv) {
     char *file_out;
     double ratio;
 
-    if (argc != 3 && argc != 4) {
-        printf("Usage: %s <list.txt> <outfile> [window_radius]\n", argv[0]);
+    if (argc != 3 && argc != 5) {
+        printf("Usage: %s <list.txt> <outfile> [start index] [end index]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
     list_in = argv[1];
     ratio = 0.6;
     file_out = argv[2];
-
-    int window_radius = -1;
-    if (argc == 4) {
-        window_radius = atoi(argv[3]);
-    }
 
     clock_t start = clock();
 
@@ -102,7 +98,16 @@ int main(int argc, char **argv) {
     printf("[KeyMatchFull] Reading keys took %0.3fs\n", 
            (end - start) / ((double) CLOCKS_PER_SEC));
 
-    for (int i = 0; i < num_images; i++) {
+	int startIndex, endIndex;
+	if (argc == 5) {
+		startIndex = std::max<int>(atoi(argv[3]), 0);
+		endIndex = std::min<int>(num_images, atoi(argv[4]));
+	} else {
+		startIndex = 0;
+		endIndex = num_images;
+	}
+
+    for (int i = startIndex; i < endIndex; i++) {
         if (num_keys[i] == 0)
             continue;
 
@@ -114,11 +119,7 @@ int main(int argc, char **argv) {
         ANNkd_tree *tree = CreateSearchTree(num_keys[i], keys[i]);
 
         /* Compute the start index */
-        int start_idx = 0;
-        if (window_radius > 0) 
-            start_idx = std::max(i - window_radius, 0);
-
-        for (int j = start_idx; j < i; j++) {
+        for (int j = 0; j < i; j++) {
             if (num_keys[j] == 0)
                 continue;
 

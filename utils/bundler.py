@@ -57,6 +57,7 @@ LIB_PATH = os.path.join(MOD_PATH, "../lib")
 BIN_SIFT = None
 BIN_BUNDLER = None
 BIN_MATCHKEYS = None
+POOL_THREAD_NUMS = 4
 
 CCD_WIDTHS = {
      "Asahi Optical Co.,Ltd.  PENTAX Optio330RS" : 7.176, # 1/1.8"
@@ -528,7 +529,7 @@ def sift_images(images, verbose=False, parallel=True):
             BIN_SIFT = os.path.join(BIN_PATH, "sift")
         
     if parallel:
-        pool = Pool(4)
+        pool = Pool(POOL_THREAD_NUMS)
         key_filenames = pool.map(sift_image, images)
     else:
         for image in images:
@@ -546,10 +547,26 @@ def sift_images(images, verbose=False, parallel=True):
     assert len(files_not_supported) == 0
     return map(lambda x: x[1], key_filenames)
 
-def match_images(key_files, matches_file, verbose=False):
+def do_match_images(args):
+    print args
+    keys_file, startIndex, endIndex, fileout = args
+
+    # Add lib folder to LD_LIBRARY_PATH
+    env = dict(os.environ)
+    if env.has_key('LD_LIBRARY_PATH'):
+        env['LD_LIBRARY_PATH'] = env['LD_LIBRARY_PATH'] + ':' + LIB_PATH
+    else:
+        env['LD_LIBRARY_PATH'] = LIB_PATH
+
+    with open(os.devnull, 'w') as fp_out:
+        print ' '.join([BIN_MATCHKEYS, keys_file, fileout])
+        subprocess.call([BIN_MATCHKEYS, keys_file, fileout, startIndex, endIndex],
+                        stdout=fp_out, env=env)
+
+
+def match_images(key_files, matches_file, verbose=False, parallel=True):
     "Executes KeyMatchFull to match key points in images."""
     global BIN_MATCHKEYS, BIN_PATH
-
     if BIN_MATCHKEYS is None:
         if sys.platform == 'win32' or sys.platform == 'cygwin':
             BIN_MATCHKEYS = os.path.join(BIN_PATH, "KeyMatchFull.exe")
@@ -562,22 +579,39 @@ def match_images(key_files, matches_file, verbose=False):
             fp.write(key + '\n')
         keys_file = fp.name
 
-    # Add lib folder to LD_LIBRARY_PATH
-    env = dict(os.environ)
-    if env.has_key('LD_LIBRARY_PATH'):
-        env['LD_LIBRARY_PATH'] = env['LD_LIBRARY_PATH'] + ':' + LIB_PATH
-    else:
-        env['LD_LIBRARY_PATH'] = LIB_PATH
+    if parallel:
+        parameter_list = []
 
-    if verbose:
-        print ' '.join([BIN_MATCHKEYS, keys_file, matches_file])
-        subprocess.call([BIN_MATCHKEYS, keys_file, matches_file], env=env)
-    else:
-        with open(os.devnull, 'w') as fp_out:
-            print ' '.join([BIN_MATCHKEYS, keys_file, matches_file])
-            subprocess.call([BIN_MATCHKEYS, keys_file, matches_file],
-                            stdout=fp_out, env=env)
+        num_keys = len(key_files)
+        total_comp = (0 + num_keys - 1) * num_keys / 2
 
+        # we will split the points matching task
+        # the following computation will make it more fair 
+        per_comp = total_comp / POOL_THREAD_NUMS
+        startIndex = 0
+        while startIndex < num_keys:
+            payload = 0
+
+            endIndex = num_keys
+            for endIndex in xrange(startIndex + 1, num_keys):
+                payload += endIndex - 1
+                if payload > per_comp:
+                    break
+            parameter_list.append((keys_file, str(startIndex), str(endIndex), '%d_%d.txt' % (startIndex, endIndex)))
+            startIndex = endIndex
+
+        # Pool Map
+        pool = Pool(min(POOL_THREAD_NUMS, len(parameter_list)))
+        print len(parameter_list)
+        key_filenames = pool.map(do_match_images, parameter_list)
+
+        # combine the split files
+        with open(matches_file, 'w') as f:
+            for _, startIndex, endIndex, filename in parameter_list:
+                with open(filename, 'r') as sub:
+                    f.write(sub.read())
+    else:
+        do_match_images(keys_file, 0, len(key_files), matches_file)
 
 def bundler(image_list=None, options_file=None, shell=False, *args, **kwargs):
     """Run bundler, parsing arguments from args and kwargs through.
@@ -679,7 +713,7 @@ def run_bundler(images=[], verbose=False, parallel=True):
     # Match images
     if verbose: print "[- Matching keypoints (this can take a while) -]"
     matches_file = "matches.init.txt"
-    match_images(key_files, matches_file, verbose=verbose)
+    match_images(key_files, matches_file, verbose=verbose, parallel=parallel)
 
     # Run Bundler
     if verbose: print "[- Running Bundler -]"
