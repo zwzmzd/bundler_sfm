@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
+#include <assert.h>
 
 #include "keys2a.h"
 
@@ -66,6 +67,8 @@ int main(int argc, char **argv) {
         printf("Usage: %s <list.txt> <outfile> [start index] [end index]\n", argv[0]);
         return EXIT_FAILURE;
     }
+
+	assert(argc != 4);
 
     list_in = argv[1];
     ratio = 0.6;
