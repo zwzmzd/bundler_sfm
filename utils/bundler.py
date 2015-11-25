@@ -558,7 +558,7 @@ def do_match_images(args):
     else:
         env['LD_LIBRARY_PATH'] = LIB_PATH
 
-    with open(os.devnull, 'w') as fp_out:
+    with open(fileout + '.out', 'w') as fp_out:
         print ' '.join([BIN_MATCHKEYS, keys_file, fileout])
         subprocess.call([BIN_MATCHKEYS, keys_file, fileout, startIndex, endIndex],
                         stdout=fp_out, env=env)
