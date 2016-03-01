@@ -1633,6 +1633,7 @@ void BundlerApp::BundlePickInitialPair(int &i_best, int &j_best,
             MatchIndex idx = GetMatchIndex(i, j);
 
             int num_matches = GetNumTrackMatches(i, j);
+            printf("[ccc] %d %d %d\n", i, j, num_matches);
             max_pts += num_matches;
 
 #define MATCH_THRESHOLD 32
@@ -1655,6 +1656,8 @@ void BundlerApp::BundlePickInitialPair(int &i_best, int &j_best,
                     score = 1.0 / m_transforms[idx].m_inlier_ratio;
                 }
             }
+
+            printf("Score: %lf %lf\n", score, SCORE_THRESHOLD);
 
             /* Compute the primary score */
             if (num_matches > max_matches && score > SCORE_THRESHOLD) {

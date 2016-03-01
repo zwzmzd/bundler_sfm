@@ -15,7 +15,7 @@ chomp($OS);
 if ($OS eq "Cygwin") {
     $JHEAD_EXE = "$BIN_PATH/jhead.exe";
 } else {
-    $JHEAD_EXE = "$BIN_PATH/jhead";
+    $JHEAD_EXE = "/usr/bin/jhead";
 }
 
 unless (-e $JHEAD_EXE) {
@@ -189,6 +189,7 @@ $SCALE=1.0;
      "NIKON CORPORATION NIKON D70"      => 23.7,
      "NIKON CORPORATION NIKON D70s"     => 23.7,
      "NIKON CORPORATION NIKON D80"      => 23.6,
+     "NIKON CORPORATION NIKON D7200"    => 23.5,
      "NIKON E2500"                      => 5.27,   # 1/2.7"
      "NIKON E2500"                      => 5.27,   # 1/2.7"
      "NIKON E3100"                      => 5.27,   # 1/2.7"

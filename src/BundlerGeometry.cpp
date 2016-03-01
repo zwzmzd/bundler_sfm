@@ -140,13 +140,30 @@ void BundlerApp::ComputeGeometricConstraints(bool overwrite,
         }
 
         if (!m_skip_fmatrix) {
+            printf("============ ComputeEpipolarGeometry ===================\n");
             ComputeEpipolarGeometry(true, new_image_start);
+            printf("============ ~ComputeEpipolarGeometry ===================\n");
+        }
+
+        {
+            MatchIndex offset = GetMatchIndex(0, 2);
+            printf("[0,2]  ");
+            for (int i = 0; i < 9; i++)
+                printf("%lf ", m_transforms[offset].m_fmatrix[i]);
+            printf("\n");
         }
 
         if (!m_skip_homographies) {
             ComputeTransforms(false, new_image_start);
         }
 
+        {
+            MatchIndex offset = GetMatchIndex(0, 2);
+            printf("[0,2]  ");
+            for (int i = 0; i < 9; i++)
+                printf("%lf ", m_transforms[offset].m_fmatrix[i]);
+            printf("\n");
+        }
 	MakeMatchListsSymmetric();
 
         if (num_images < 40000)
@@ -182,6 +199,14 @@ void BundlerApp::ComputeGeometricConstraints(bool overwrite,
             }
         }
 #endif
+
+        {
+            MatchIndex offset = GetMatchIndex(0, 2);
+            printf("[0,2]  ");
+            for (int i = 0; i < 9; i++)
+                printf("%lf ", m_transforms[offset].m_fmatrix[i]);
+            printf("\n");
+        }
 
         WriteGeometricConstraints(filename);
 
@@ -349,6 +374,8 @@ bool BundlerApp::ComputeEpipolarGeometry(int idx1, int idx2,
     
     int num_inliers = (int) inliers.size();
 
+    printf("hello world %d %d %d\n", m_image_data[idx1].m_keys.size(), m_image_data[idx2].m_keys.size(), removeBadMatches);
+
     printf("Inliers[%d,%d] = %d out of %d\n", idx1, idx2, num_inliers, 
 	   (int) list.size());
 
@@ -373,6 +400,10 @@ bool BundlerApp::ComputeEpipolarGeometry(int idx1, int idx2,
         m_transforms[offset_rev] = TransformInfo();
 
 	memcpy(m_transforms[offset].m_fmatrix, F, 9 * sizeof(double));
+    printf("[f-matrix]  ");
+    for (int i = 0; i < 9; i++)
+        printf("%lf ", m_transforms[offset].m_fmatrix[i]);
+    printf("\n");
 	// m_transforms[offset]->m_scale = sqrt(M[0] * M[0] + M[1] * M[1]);
 	printf("Inliers[%d,%d] = %d out of %lu\n", idx1, idx2, num_inliers, 
                list.size());

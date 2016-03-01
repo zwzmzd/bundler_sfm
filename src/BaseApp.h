@@ -178,33 +178,17 @@ public:
 
     MatchTable(int num_images) {
         m_match_lists.resize(num_images);
-        // m_neighbors.resize(num_images);
     }
 
     void SetMatch(MatchIndex idx) { 
         if (Contains(idx))
             return;  // already set
 
-        /* Create a new list */
-        // m_match_lists[idx.first][idx.second] = std::vector<KeypointMatch> ();
-        // m_match_lists[idx.first].insert(idx.second);
-        // std::list<unsigned int> tmp;
-        // tmp.push_back(idx.second);
-        // m_neighbors[idx.first].merge(tmp);
-#if 0
-        MatchAdjList tmp;
-        AdjListElem adjlist_elem;
-        adjlist_elem.m_index = idx.second;
-        tmp.push_back(adjlist_elem);
-        m_match_lists[idx.first].merge(tmp);
-#else
-        /* Using vector */
         AdjListElem e;
         e.m_index = idx.second;
         MatchAdjList &l = m_match_lists[idx.first];
         MatchAdjList::iterator p = lower_bound(l.begin(), l.end(), e);
         l.insert(p, e);
-#endif
     }
 
     void AddMatch(MatchIndex idx, KeypointMatch m) {
@@ -265,6 +249,14 @@ public:
         AdjListElem e;
         e.m_index = idx.second;
         MatchAdjList &l = m_match_lists[idx.first];
+
+        printf("[aaa] %d-->%d ", idx.first, idx.second);
+        for (auto it = l.begin(); it != l.end(); it++)
+            printf("%d ", it->m_index);
+        printf("\n");
+        fflush(stdout);
+
+            
         std::pair<MatchAdjList::iterator, MatchAdjList::iterator> p = 
             equal_range(l.begin(), l.end(), e);
     

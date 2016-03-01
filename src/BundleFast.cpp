@@ -81,7 +81,7 @@ void BundlerApp::BundleAdjustFast()
     // int good_pair_1 = -1;
     // int good_pair_2 = -1;
 
-    /* Initialize the bundle adjustment */
+    printf("======= Initialize the bundle adjustment ======\n");
     int num_init_cams = 0;
     InitializeBundleAdjust(num_init_cams, added_order, added_order_inv,
 			   cameras, points, colors, pt_views, 
@@ -105,7 +105,7 @@ void BundlerApp::BundleAdjustFast()
 	       "%d and %d (score = %0.3f)\n", 
 	       i_best, j_best, max_score);
 
-	/* **** Set up the initial cameras **** */
+    printf("======= Set up the initial camera ======\n");
 	double init_focal_length_0 = 0.0, init_focal_length_1 = 0.0;
 	pt_count = curr_num_pts = 
 	    SetupInitialCameraPair(i_best, j_best, 

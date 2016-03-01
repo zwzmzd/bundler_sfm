@@ -693,8 +693,8 @@ def bundler(image_list=None, options_file=None, shell=False, *args, **kwargs):
             subprocess.call([BIN_BUNDLER, image_list_file] + str_args,
                 shell=shell, env=env, stdout=fp_out)
 
-    if type(image_list) == dict:
-        os.remove(image_list_file)
+    #if type(image_list) == dict:
+#        os.remove(image_list_file)
 
 def run_bundler(images=[], verbose=False, parallel=True):
     """Prepare images and run bundler with default options."""
