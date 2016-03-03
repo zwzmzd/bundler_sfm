@@ -250,13 +250,6 @@ public:
         e.m_index = idx.second;
         MatchAdjList &l = m_match_lists[idx.first];
 
-        printf("[aaa] %d-->%d ", idx.first, idx.second);
-        for (auto it = l.begin(); it != l.end(); it++)
-            printf("%d ", it->m_index);
-        printf("\n");
-        fflush(stdout);
-
-            
         std::pair<MatchAdjList::iterator, MatchAdjList::iterator> p = 
             equal_range(l.begin(), l.end(), e);
     

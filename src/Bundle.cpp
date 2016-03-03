@@ -1609,7 +1609,7 @@ void BundlerApp::BundlePickInitialPair(int &i_best, int &j_best,
     if (m_use_angular_score) {
         SCORE_THRESHOLD = 0.2;
     } else {
-        SCORE_THRESHOLD = 2.0; // 1.0 // 2.0 // 1.0
+        SCORE_THRESHOLD = 1.5; // 1.0 // 2.0 // 1.0
     }
 
     /* Compute score for each image pair */
