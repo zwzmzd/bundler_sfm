@@ -744,7 +744,7 @@ if __name__ == '__main__':
         help="disable parallelisation", default=False)
     parser.add_argument('--extract-focal', action='store_true',
         help="only create list of images to be reconstructed", default=False)
-    parser.add_argument('--init', action='store_true',
+    parser.add_argument('--rename', action='store_true',
         help="rename all your case to expI.jpg", default=False)
     args = parser.parse_args()
 
@@ -754,8 +754,8 @@ if __name__ == '__main__':
             for image,value in images.items():
                 if value == None: fp.write(image + '\n')
                 else: fp.write(' '.join([image, '0', str(value), '\n']))
-    elif args.init:
-        print 'init'
+    elif args.rename:
+        print 'rename'
         images = extract_focal_length(verbose=args.verbose)
         d = {}
         i = 0
